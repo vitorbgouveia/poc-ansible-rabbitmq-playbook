@@ -1,0 +1,63 @@
+name: Setup rabbitmq
+
+on:
+  push:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+    ci:
+        runs-on: self-hosted
+        env:
+            USR_RABBITMQ_ADMIN: "admin"
+            USR_RABBITMQ_ADMIN_PASSWORD: "senha"
+            USR_RABBITMQ_PASSWORD: "senha"
+            HOST_RABBITMQ: "34.125.52.30"
+            SSH_PRIVATE_KEY: |
+                -----BEGIN RSA PRIVATE KEY-----
+                MIICXAIBAAKBgQCKXkld2F5cNYfBHC2Nh3WglW70DXmJLrItULmL0WIj2GkDqzUe
+                9jNuTf/tvJZKbnhntlcZgWbHtsg5puGeglys+a9IJp8Ma8pAHv8PA6yPN6r0/3Uw
+                H9KQtHEpEBqEEYAvFWtmhO8bl7GHWktgG7SRb4Xy6z9WpCabRfucoMKMZQIDAQAB
+                AoGAKsMk7WnXD6xDfjzVHy5D/hLwrWAUtX7G9hZCoaFeMTHKkqWwzxbLokVc2P41
+                fF9TusmxdWJ2fzZP/vFCPRiQxzORi1MUGkCQs2PkpfMYuRdUz/gM9MYY+VWCRH14
+                xYzr3SuUBUGCu6WrUzSUJBBb8y2iJ1BrAOUn7Nuy6UeeJ0ECQQD5bCI9lVoMgvxy
+                9K6Nl8D3NENDLEU1rf6yjx6hRpHqK03Kvuy2Ozi7byJPrHRoNKE6+BCQoSEfUAZ7
+                +TLBbI4pAkEAjgRrceFPODxRscDKr8jdhQV6imXTiyXQ8iOjwMqn1l7Wu22YtElL
+                ovcG7dyRZf6KieEQtVcVL2KM9RZyiVGb3QJAbP+0dvUtxQn5CMOlBHus+Fr+ifxu
+                wmanR6ED4bbVTWBfPprxFzIKON74P5k9xcw6KWr+0jWYI/b03niolZ67AQJAaD2G
+                QAiJBVYBAN/p5i0hq8nhsEQdij0vqQvP3mrh1s+1/czsESjbg7qeM2l6r8quFZZF
+                lVVeD3He1OatG23zYQJBAIinA9S/l5sLo+gmiWxLQ0HcJprn07/70NHWOjmojV+S
+                90BIY2PNrbmsCrBwZFgeTkeqhqrNYNTfDJmf0bvf4z8=
+                -----END RSA PRIVATE KEY-----
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Setup rabbitmq
+              run: |
+                  sudo apt update
+                  sudo apt install openssh-server
+                  echo 'SSH_KNOWN_HOSTS<<EOF' >> $GITHUB_ENV
+                  echo $(ssh-keyscan ${{env.HOST_RABBITMQ}}) >> $GITHUB_ENV
+                  echo 'EOF' >> $GITHUB_ENV
+            - name: Run playbook
+              uses: dawidd6/action-ansible-playbook@v2
+              with:
+                  playbook: playbook.yml
+                  key: ${{env.SSH_PRIVATE_KEY}}
+                  known_hosts: ${{env.SSH_KNOWN_HOSTS}}
+                  directory: build/rabbitmq
+                  requirements: requirements.yml
+                  options: |
+                      --verbose
+                      --extra-vars
+                        "example_admin=${{env.USR_RABBITMQ_ADMIN}}
+                        example_admin_password=${{env.USR_RABBITMQ_ADMIN_PASSWORD}}
+                        example_user_password=${{env.USR_RABBITMQ_PASSWORD}}
+                  inventory: |
+                      [servers]
+                      server ansible_host=${{env.HOST_RABBITMQ}}
+
+                      [all:vars]
+                      ansible_python_interpreter=/usr/bin/python3
+

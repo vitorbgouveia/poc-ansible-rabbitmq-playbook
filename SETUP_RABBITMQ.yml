@@ -1,0 +1,48 @@
+name: Setup rabbitmq
+
+on:
+  push:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+    ci:
+        runs-on: self-hosted
+        env:
+            USR_RABBITMQ_ADMIN: ${{ secrets.USR_RABBITMQ_ADMIN }}
+            USR_RABBITMQ_ADMIN_PASSWORD: ${{ secrets.USR_RABBITMQ_HOMOLOGATION_ADMIN_PASSWORD }}
+            USR_RABBITMQ_PASSWORD: ${{ secrets.USR_RABBITMQ_DTVM_PRODUCER_PASSWORD }}
+            HOST_RABBITMQ: ${{ secrets.HOST_RABBITMQ }}
+            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Setup rabbitmq
+              run: |
+                  sudo apt update
+                  sudo apt install openssh-server
+                  echo 'SSH_KNOWN_HOSTS<<EOF' >> $GITHUB_ENV
+                  echo $(ssh-keyscan ${{ env.HOST_RABBITMQ }}) >> $GITHUB_ENV
+                  echo 'EOF' >> $GITHUB_ENV
+            - name: Run playbook
+              uses: dawidd6/action-ansible-playbook@v2
+              with:
+                  playbook: playbook.yml
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  known_hosts: ${{ env.SSH_KNOWN_HOSTS }}
+                  directory: rabbitmq
+                  requirements: requirements.yml
+                  options: |
+                      --verbose
+                      --extra-vars
+                        "example_admin=${{env.USR_RABBITMQ_ADMIN}}
+                        example_admin_password=${{env.USR_RABBITMQ_ADMIN_PASSWORD}}
+                        example_user_password=${{env.USR_RABBITMQ_PASSWORD}}
+                  inventory: |
+                      [servers]
+                      server ansible_host=${{ env.HOST_RABBITMQ}}
+
+                      [all:vars]
+                      ansible_python_interpreter=/usr/bin/python3
+

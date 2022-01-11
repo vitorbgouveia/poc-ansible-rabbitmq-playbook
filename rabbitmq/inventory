@@ -1,0 +1,5 @@
+[servers]
+server1 ansible_host=34.125.52.30
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3

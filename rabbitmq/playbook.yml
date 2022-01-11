@@ -1,0 +1,58 @@
+---
+- name: Test Action
+  hosts: all
+  become: yes
+  tasks:
+    - name: rabbitmq [create vhost test]
+      community.rabbitmq.rabbitmq_vhost:
+        name: /test
+        state: present
+
+    - name: rabbitmq [create user admin]
+      community.rabbitmq.rabbitmq_user:
+        user: "{{ example_admin }}"
+        password: "{{ example_admin_password }}"
+        tags: administrator
+        permissions:
+          - vhost: /test
+            configure_priv: ".*"
+            read_priv: ".*"
+            write_priv: ".*"
+        state: present
+
+    - name: rabbitmq [create exchange]
+      community.rabbitmq.rabbitmq_exchange:
+        login_user: "{{ example_admin }}"
+        login_password: "{{ example_admin_password }}"
+        name: example.exchange
+        type: fanout
+        vhost: /test
+        durable: yes
+
+    - name: rabbitmq [create queue]
+      community.rabbitmq.rabbitmq_queue:
+        name: example.queue
+        login_user: "{{ example_admin }}"
+        login_password: "{{ example_admin_password }}"
+        vhost: /test
+        durable: yes
+
+    - name: rabbitmq [create binding]
+      community.rabbitmq.rabbitmq_binding:
+        name: example.exchange
+        destination: example.queue
+        login_user: "{{ example_admin }}"
+        login_password: "{{ example_admin_password }}"
+        vhost: /test
+        type: queue
+
+    - name: rabbitmq [create user]
+      community.rabbitmq.rabbitmq_user:
+        user: example_user
+        password: "{{ example_user_password }}"
+        permissions:
+          - vhost: /test
+            configure_priv: ""
+            read_priv: ""
+            write_priv: "^(example.queue)$"
+        state: present
